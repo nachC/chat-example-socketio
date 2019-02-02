@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Socket.IO chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font: 13px Helvetica, Arial;
+        }
+
+        form {
+            background: #000;
+            padding: 3px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        form p {
+            background: white;
+            color: red;
+        }
+
+        form input {
+            border: 0;
+            padding: 10px;
+            width: 90%;
+            margin-right: .5%;
+        }
+
+        form button {
+            width: 9%;
+            background: rgb(130, 224, 255);
+            border: none;
+            padding: 10px;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #messages li {
+            padding: 5px 10px;
+        }
+
+        #messages li:nth-child(odd) {
+            background: #eee;
+        }
+
+        #users {
+            background: blue;
+            position: absolute;
+            right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <ul id="users"></ul>
+    <ul id="messages"></ul>
+    <form action="">
+        <p id="typing">Other user is typing</p>
+        <input id="m" autocomplete="off" /><button>Send</button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+        $(function () {
+            $('#typing').hide();
+            const socket = io();
+            let username = '';
+            $('form').submit(function (e) {
+                e.preventDefault(); // prevents page reloading
+                socket.emit('chat message', { username, msg: $('#m').val() });
+                $('#messages').append($('<li>').text('Me: ' + $('#m').val()));
+                $('#m').val('');
+                socket.emit('user typing', false)
+                return false;
+            });
+            socket.on('user connected', () => {
+                $('#messages').append($('<li>').text('New user connected'));
+            });
+            socket.on('user disconnected', (user) => {
+                $('#users').children(`li:contains(${user})`).remove();
+                $('#messages').append($('<li>').text('User disconnected'));
+            });
+            socket.on('chat message', (data) => {
+                $('#messages').append($('<li>').text(data.username + ': ' + data.msg));
+            });
+            socket.on('set username', (data) => {
+                username = data.username;
+            });
+
+            socket.on('users online', (data) => {
+                $('#users').children('li').remove();
+                data.usersOnline.forEach((user) => {
+                    $('#users').append($('<li>').text(user + ' is online'));
+                });
+            });
+
+            document.getElementById('m').addEventListener('input', () => {
+                if ($('#m').val().length) {
+                    socket.emit('user typing', true)
+                }else{
+                    socket.emit('user typing', false)
+                }
+            });
+
+            socket.on('user typing', (isTyping) => {
+                if(isTyping) {
+                    $('#typing').show();
+                }else{
+                    $('#typing').hide();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
